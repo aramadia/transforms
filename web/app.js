@@ -22,7 +22,7 @@ const inputFrameEl = document.getElementById('inputFrame');
 const outputFrameEl = document.getElementById('outputFrame');
 
 const outQuatEl = document.getElementById('outQuat');
-const rotMatrixTable = document.getElementById('rotMatrix');
+const outMatrixEl = document.getElementById('outMatrix');
 const outRPYEl = document.getElementById('outRPY');
 
 function getInputQuaternion() {
@@ -63,27 +63,28 @@ function update() {
   const q = getInputQuaternion();
   const qOut = convertFrame(q, inputFrameEl.value, outputFrameEl.value).normalize();
 
-  outQuatEl.textContent = `${qOut.w.toFixed(6)}, ${qOut.x.toFixed(6)}, ${qOut.y.toFixed(6)}, ${qOut.z.toFixed(6)}`;
+  // Format quaternion as plain Python list [w, x, y, z]
+  outQuatEl.value = `[${qOut.w.toFixed(6)}, ${qOut.x.toFixed(6)}, ${qOut.y.toFixed(6)}, ${qOut.z.toFixed(6)}]`;
 
+  // Format rotation matrix as numpy array shape (3,3)
   const m = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(qOut));
   const elems = m.elements;
-  rotMatrixTable.innerHTML = '';
+  const rows = [];
   for (let r = 0; r < 3; r++) {
-    const row = document.createElement('tr');
+    const row = [];
     for (let c = 0; c < 3; c++) {
-      const cell = document.createElement('td');
-      const val = elems[c * 3 + r];
-      cell.textContent = val.toFixed(6);
-      row.appendChild(cell);
+      row.push(elems[c * 3 + r].toFixed(6));
     }
-    rotMatrixTable.appendChild(row);
+    rows.push(`  [${row.join(', ')}]`);
   }
+  outMatrixEl.value = `${rows.join(',\n')}`;
 
+  // Roll, pitch, yaw in degrees formatted as plain Python list
   const eul = new THREE.Euler().setFromQuaternion(qOut, 'XYZ');
   const roll = THREE.MathUtils.radToDeg(eul.x);
   const pitch = THREE.MathUtils.radToDeg(eul.y);
   const yaw = THREE.MathUtils.radToDeg(eul.z);
-  outRPYEl.textContent = `${roll.toFixed(2)}, ${pitch.toFixed(2)}, ${yaw.toFixed(2)}`;
+  outRPYEl.value = `[${roll.toFixed(2)}, ${pitch.toFixed(2)}, ${yaw.toFixed(2)}]`;
 }
 
 inputTypeEl.addEventListener('change', () => {

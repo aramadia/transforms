@@ -47,10 +47,18 @@
   </div>
   <h2>Output</h2>
   <div id="output">
-    <div>Quaternion (w, x, y, z): <span id="outQuat"></span></div>
-    <div>Rotation Matrix:</div>
-    <table id="rotMatrix"></table>
-    <div>RPY (deg): <span id="outRPY"></span></div>
+  <div class="row">
+    <label for="outQuat">Quaternion (w, x, y, z):</label><br/>
+    <textarea id="outQuat" rows="1" cols="50" readonly></textarea>
+  </div>
+  <div class="row">
+    <label for="outMatrix">Rotation Matrix (shape (3,3)):</label><br/>
+    <textarea id="outMatrix" rows="4" cols="50" readonly></textarea>
+  </div>
+  <div class="row">
+    <label for="outRPY">RPY (deg) (roll, pitch, yaw):</label><br/>
+    <textarea id="outRPY" rows="1" cols="50" readonly></textarea>
+  </div>
   </div>
 
   <script type="module" src="app.js"></script>
