@@ -5,9 +5,29 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from scipy.spatial.transform import Rotation as R
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from ned_enu import ned_to_enu, FRAC_1_SQRT_2
+
+
+def rpy_to_quat(rpy: tuple[float, float, float]) -> np.ndarray:
+    """Convert roll, pitch, yaw (degrees) to a quaternion [w, x, y, z]."""
+    # SciPy returns quaternions in [x, y, z, w] order; rotate to [w, x, y, z]
+    return np.roll(R.from_euler("xyz", rpy, degrees=True).as_quat(), 1)
+
+
+def quat_to_rpy(q: np.ndarray) -> np.ndarray:
+    """Convert quaternion [w, x, y, z] to roll, pitch, yaw (degrees)."""
+    # Rotate to SciPy's [x, y, z, w] order before conversion
+    return R.from_quat(np.roll(q, -1)).as_euler("xyz", degrees=True)
+
+
+def assert_quat_allclose(a: np.ndarray, b: np.ndarray) -> None:
+    """Assert two quaternions are equal up to sign."""
+    if np.allclose(a, b) or np.allclose(a, -b):
+        return
+    np.testing.assert_allclose(a, b)
 
 
 A = FRAC_1_SQRT_2
@@ -34,6 +54,27 @@ CASES = [
         np.array([0.0, 0.0, 0.0, 1.0]),
         np.array([0.0, A, -A, 0.0]),
     ),
+    (
+        "pitch 10° nose up",
+        (0.0, 10.0, 0.0),
+        (180.0, -10.0, 90.0),
+        np.array([0.9961947, 0.0, 0.08715574, 0.0]),
+        np.array([-0.06162842, 0.70441603, 0.70441603, 0.06162842]),
+    ),
+    (
+        "pitch -10° nose down",
+        (0.0, -10.0, 0.0),
+        (180.0, 10.0, 90.0),
+        np.array([0.9961947, 0.0, -0.08715574, 0.0]),
+        np.array([0.06162842, 0.70441603, 0.70441603, -0.06162842]),
+    ),
+    (
+        "roll 45° bank left",
+        (45.0, 0.0, 0.0),
+        (-135.0, 0.0, 90.0),
+        np.array([0.92387953, 0.38268343, 0.0, 0.0]),
+        np.array([-0.27059805, 0.65328148, 0.65328148, -0.27059805]),
+    ),
 ]
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,6 +94,13 @@ def run_rust(impl_name: str, q: np.ndarray) -> np.ndarray:
     CASES,
 )
 def test_ned_to_enu(name, start_rpy, end_rpy, q_in, expected):
+    # Verify the provided quaternions encode the stated roll, pitch, yaw values
+    np.testing.assert_allclose(quat_to_rpy(q_in), start_rpy)
+    np.testing.assert_allclose(quat_to_rpy(expected), end_rpy)
+    assert_quat_allclose(rpy_to_quat(start_rpy), q_in)
+    assert_quat_allclose(rpy_to_quat(end_rpy), expected)
+
+    # Run the Python implementation and ensure it matches the expected quaternion
     expected_python = ned_to_enu(q_in)
     np.testing.assert_allclose(expected_python, expected)
 
