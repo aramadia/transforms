@@ -1,10 +1,12 @@
 import os
+import subprocess
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from ned_enu import ned_to_enu, FRAC_1_SQRT_2
 
 
@@ -34,11 +36,26 @@ CASES = [
     ),
 ]
 
+ROOT = Path(__file__).resolve().parent.parent
+IMPLS = ["manual", "nalgebra"]
+
+
+def run_rust(impl_name: str, q: np.ndarray) -> np.ndarray:
+    cmd = ["cargo", "run", "--quiet", "--", impl_name] + [str(x) for x in q]
+    completed = subprocess.run(
+        cmd, capture_output=True, check=True, text=True, cwd=ROOT
+    )
+    return np.fromstring(completed.stdout.strip(), sep=" ")
+
 
 @pytest.mark.parametrize(
     "name,start_rpy,end_rpy,q_in,expected",
     CASES,
 )
 def test_ned_to_enu(name, start_rpy, end_rpy, q_in, expected):
-    result = ned_to_enu(q_in)
-    np.testing.assert_allclose(result, expected)
+    expected_python = ned_to_enu(q_in)
+    np.testing.assert_allclose(expected_python, expected)
+
+    for impl_name in IMPLS:
+        result = run_rust(impl_name, q_in)
+        np.testing.assert_allclose(result, expected_python)
