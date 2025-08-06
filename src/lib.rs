@@ -14,18 +14,31 @@ fn quat_mul(a: Quaternion, b: Quaternion) -> Quaternion {
     ]
 }
 
-/// Convert a quaternion representing an orientation in the North-East-Down (NED)
-/// frame into the equivalent quaternion in the East-North-Up (ENU) frame.
-///
-/// The quaternion is expected to be in `[w, x, y, z]` format and normalized.
-/// The returned quaternion is also normalized.
-pub fn ned_to_enu(q_ned: Quaternion) -> Quaternion {
+/// Hand-written quaternion multiplication implementation of the transform.
+pub fn ned_to_enu_manual(q_ned: Quaternion) -> Quaternion {
     quat_mul(NED_TO_ENU, q_ned)
+}
+
+/// Implementation of the transform using the `nalgebra` crate.
+pub fn ned_to_enu_nalgebra(q_ned: Quaternion) -> Quaternion {
+    use nalgebra::Quaternion as NQuaternion;
+
+    let rot = NQuaternion::new(NED_TO_ENU[0], NED_TO_ENU[1], NED_TO_ENU[2], NED_TO_ENU[3]);
+    let q = NQuaternion::new(q_ned[0], q_ned[1], q_ned[2], q_ned[3]);
+    let r = rot * q;
+    [r.w, r.i, r.j, r.k]
+}
+
+/// Default transform exposed for consumers. Currently uses the manual version.
+pub fn ned_to_enu(q_ned: Quaternion) -> Quaternion {
+    ned_to_enu_manual(q_ned)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    type Transform = fn(Quaternion) -> Quaternion;
 
     fn approx_eq(a: Quaternion, b: Quaternion) {
         let eps = 1e-10;
@@ -34,26 +47,58 @@ mod tests {
         }
     }
 
-    #[test]
-    fn identity_orientation() {
-        let q = [1.0, 0.0, 0.0, 0.0];
-        let expected = [0.0, FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.0];
-        approx_eq(ned_to_enu(q), expected);
+    #[derive(Clone, Copy)]
+    struct Case {
+        name: &'static str,
+        start_rpy_deg: (f64, f64, f64),
+        end_rpy_deg: (f64, f64, f64),
+        input: Quaternion,
+        expected: Quaternion,
     }
 
-    #[test]
-    fn yaw_90_becomes_roll_180() {
-        let a = FRAC_1_SQRT_2;
-        let q_yaw_90 = [a, 0.0, 0.0, a];
-        let expected = [0.0, 1.0, 0.0, 0.0];
-        approx_eq(ned_to_enu(q_yaw_90), expected);
-    }
+    const A: f64 = FRAC_1_SQRT_2;
+
+    const CASES: &[Case] = &[
+        Case {
+            name: "identity orientation",
+            start_rpy_deg: (0.0, 0.0, 0.0),
+            end_rpy_deg: (180.0, 0.0, 90.0),
+            input: [1.0, 0.0, 0.0, 0.0],
+            expected: [0.0, A, A, 0.0],
+        },
+        Case {
+            name: "yaw 90° becomes roll 180°",
+            start_rpy_deg: (0.0, 0.0, 90.0),
+            end_rpy_deg: (180.0, 0.0, 0.0),
+            input: [A, 0.0, 0.0, A],
+            expected: [0.0, 1.0, 0.0, 0.0],
+        },
+        Case {
+            name: "yaw 180° becomes roll 180° with yaw -90°",
+            start_rpy_deg: (0.0, 0.0, 180.0),
+            end_rpy_deg: (180.0, 0.0, -90.0),
+            input: [0.0, 0.0, 0.0, 1.0],
+            expected: [0.0, A, -A, 0.0],
+        },
+    ];
+
+    const IMPLS: &[(&str, Transform)] = &[
+        ("manual", ned_to_enu_manual as Transform),
+        ("nalgebra", ned_to_enu_nalgebra as Transform),
+    ];
 
     #[test]
-    fn yaw_180_results() {
-        let q_yaw_180 = [0.0, 0.0, 0.0, 1.0];
-        let a = FRAC_1_SQRT_2;
-        let expected = [0.0, a, -a, 0.0];
-        approx_eq(ned_to_enu(q_yaw_180), expected);
+    fn implementations_match_expected() {
+        for case in CASES {
+            for (impl_name, f) in IMPLS {
+                let result = f(case.input);
+                approx_eq(result, case.expected);
+                // print orientation context for easier debugging if the test fails
+                println!(
+                    "{impl_name} | {}: start rpy {:?} -> end rpy {:?}",
+                    case.name, case.start_rpy_deg, case.end_rpy_deg
+                );
+            }
+        }
     }
 }
