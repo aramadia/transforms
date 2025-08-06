@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Quaternion Frame Converter</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    .row { margin-bottom: 10px; }
+    label { margin-right: 5px; }
+    input[type="number"] { width: 80px; }
+    table { border-collapse: collapse; }
+    td, th { border: 1px solid #ccc; padding: 4px 8px; }
+  </style>
+</head>
+<body>
+  <h1>Quaternion / Axis-Angle Converter</h1>
+  <div class="row">
+    <label for="inputType">Input Type:</label>
+    <select id="inputType">
+      <option value="quaternion">Quaternion</option>
+      <option value="axis">Axis Angle</option>
+    </select>
+  </div>
+  <div id="quaternionInput" class="row">
+    <label>w <input type="number" id="qw" step="any" value="1" /></label>
+    <label>x <input type="number" id="qx" step="any" value="0" /></label>
+    <label>y <input type="number" id="qy" step="any" value="0" /></label>
+    <label>z <input type="number" id="qz" step="any" value="0" /></label>
+  </div>
+  <div id="axisInput" class="row" style="display:none">
+    <label>Axis X <input type="number" id="ax" step="any" value="1" /></label>
+    <label>Y <input type="number" id="ay" step="any" value="0" /></label>
+    <label>Z <input type="number" id="az" step="any" value="0" /></label>
+    <label>Angle (deg) <input type="number" id="angle" step="any" value="0" /></label>
+  </div>
+  <div class="row">
+    <label>Input Frame:</label>
+    <select id="inputFrame">
+      <option value="ENU">ENU</option>
+      <option value="NED">NED</option>
+    </select>
+    <label>Output Frame:</label>
+    <select id="outputFrame">
+      <option value="ENU">ENU</option>
+      <option value="NED">NED</option>
+    </select>
+  </div>
+  <h2>Output</h2>
+  <div id="output">
+    <div>Quaternion (w, x, y, z): <span id="outQuat"></span></div>
+    <div>Rotation Matrix:</div>
+    <table id="rotMatrix"></table>
+    <div>RPY (deg): <span id="outRPY"></span></div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
