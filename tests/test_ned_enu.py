@@ -78,11 +78,20 @@ CASES = [
 ]
 
 ROOT = Path(__file__).resolve().parent.parent
-IMPLS = ["manual", "nalgebra"]
+IMPLS = ["manual", "nalgebra", "threejs"]
 
 
-def run_rust(impl_name: str, q: np.ndarray) -> np.ndarray:
-    cmd = ["cargo", "run", "--quiet", "--", impl_name] + [str(x) for x in q]
+def run_impl(impl_name: str, q: np.ndarray) -> np.ndarray:
+    if impl_name in {"manual", "nalgebra"}:
+        cmd = ["cargo", "run", "--quiet", "--", impl_name] + [str(x) for x in q]
+    elif impl_name == "threejs":
+        node_modules = ROOT / "node_modules" / "three"
+        if not node_modules.exists():
+            subprocess.run(["npm", "install", "--silent"], check=True, cwd=ROOT)
+        cmd = ["node", "ned_to_enu.mjs", impl_name] + [str(x) for x in q]
+    else:
+        raise ValueError(f"unknown implementation {impl_name}")
+
     completed = subprocess.run(
         cmd, capture_output=True, check=True, text=True, cwd=ROOT
     )
@@ -105,5 +114,5 @@ def test_ned_to_enu(name, start_rpy, end_rpy, q_in, expected):
     np.testing.assert_allclose(expected_python, expected)
 
     for impl_name in IMPLS:
-        result = run_rust(impl_name, q_in)
+        result = run_impl(impl_name, q_in)
         np.testing.assert_allclose(result, expected_python)
